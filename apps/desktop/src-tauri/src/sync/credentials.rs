@@ -35,7 +35,30 @@ pub trait Credentials: Send + Sync {
     ) -> Result<(), String>;
     fn delete(&self, state: &SyncState, binding: &SyncBinding) -> Result<(), String>;
 }
+#[cfg(not(target_os = "android"))]
 pub struct NativeCredentials;
+#[cfg(target_os = "android")]
+pub struct NativeCredentials(pub tauri::AppHandle);
+
+#[cfg(target_os = "android")]
+impl NativeCredentials {
+    fn key(state: &SyncState, binding: &SyncBinding) -> String {
+        format!(
+            "{:x}",
+            Sha256::digest(
+                format!(
+                    "{}\n{}\n{}",
+                    state.device_id, binding.config.project_url, binding.user_id
+                )
+                .as_bytes()
+            )
+        )
+    }
+    fn store(&self) -> tauri::State<'_, tauri_plugin_sidetask_mobile::SecureStore<tauri::Wry>> {
+        use tauri::Manager;
+        self.0.state()
+    }
+}
 impl NativeCredentials {
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     fn entry(state: &SyncState, binding: &SyncBinding) -> Result<keyring::Entry, String> {
@@ -50,6 +73,17 @@ impl NativeCredentials {
 }
 impl Credentials for NativeCredentials {
     fn read(&self, state: &SyncState, binding: &SyncBinding) -> Result<Option<Session>, String> {
+        #[cfg(target_os = "android")]
+        {
+            let raw = self.store().read(&Self::key(state, binding))?;
+            raw.map(|raw| {
+                let session: Session =
+                    serde_json::from_str(&raw).map_err(|_| "登录凭据格式无效，请重新登录。")?;
+                session.validate()?;
+                Ok(session)
+            })
+            .transpose()
+        }
         #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             let raw = match Self::entry(state, binding)?.get_password() {
@@ -62,7 +96,7 @@ impl Credentials for NativeCredentials {
             session.validate()?;
             Ok(Some(session))
         }
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "android")))]
         {
             let _ = (state, binding);
             Err("同步目前仅支持 macOS 和 Windows。".into())
@@ -75,6 +109,11 @@ impl Credentials for NativeCredentials {
         session: &Session,
     ) -> Result<(), String> {
         session.validate()?;
+        #[cfg(target_os = "android")]
+        {
+            let raw = serde_json::to_string(session).map_err(|_| "无法编码登录凭据。")?;
+            self.store().write(&Self::key(state, binding), &raw)
+        }
         #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             let raw = serde_json::to_string(session).map_err(|_| "无法编码登录凭据。")?;
@@ -82,13 +121,17 @@ impl Credentials for NativeCredentials {
                 .set_password(&raw)
                 .map_err(|_| "无法把登录凭据保存到系统凭据库；未连接同步。".into())
         }
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "android")))]
         {
             let _ = (state, binding);
             Err("同步目前仅支持 macOS 和 Windows。".into())
         }
     }
     fn delete(&self, state: &SyncState, binding: &SyncBinding) -> Result<(), String> {
+        #[cfg(target_os = "android")]
+        {
+            self.store().delete(&Self::key(state, binding))
+        }
         #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             match Self::entry(state, binding)?.delete_credential() {
@@ -96,7 +139,7 @@ impl Credentials for NativeCredentials {
                 Err(_) => Err("无法移除系统登录凭据，请重试断开同步。".into()),
             }
         }
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "android")))]
         {
             let _ = (state, binding);
             Err("同步目前仅支持 macOS 和 Windows。".into())

@@ -56,13 +56,53 @@ pub struct Supabase {
     test_endpoint: Option<String>,
 }
 impl Supabase {
+    #[cfg(all(target_os = "android", feature = "mobile-smoke"))]
+    pub fn probe(&self, config: &SyncConfig) -> Result<u16, String> {
+        config.validate()?;
+        self.client
+            .get(format!("{}/auth/v1/settings", config.project_url))
+            .header("apikey", &config.publishable_key)
+            .send()
+            .map(|response| response.status().as_u16())
+            .map_err(|_| "Android HTTPS connection failed".into())
+    }
+    #[cfg(not(target_os = "android"))]
     pub fn new() -> Result<Self, String> {
-        let client = Client::builder()
+        Self::build(None)
+    }
+    #[cfg(target_os = "android")]
+    pub fn new_android(app: &tauri::AppHandle) -> Result<Self, String> {
+        use base64::Engine;
+        use tauri::Manager;
+        let encoded = app
+            .state::<tauri_plugin_sidetask_mobile::SecureStore<tauri::Wry>>()
+            .certificates()?;
+        if encoded.is_empty() || encoded.len() > 512 {
+            return Err("系统信任证书不可用。".into());
+        }
+        let certificates = encoded
+            .into_iter()
+            .map(|value| {
+                let der = base64::engine::general_purpose::STANDARD
+                    .decode(value)
+                    .map_err(|_| "系统证书格式无效。")?;
+                reqwest::Certificate::from_der(&der).map_err(|_| "系统证书格式无效。".to_string())
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Self::build(Some(certificates))
+    }
+    fn build(certificates: Option<Vec<reqwest::Certificate>>) -> Result<Self, String> {
+        let builder = Client::builder()
             .connect_timeout(Duration::from_secs(8))
             .timeout(Duration::from_secs(25))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .map_err(|_| "无法初始化同步网络连接。")?;
+            .redirect(reqwest::redirect::Policy::none());
+        // Read Android system CAs natively; never disable hostname verification.
+        let builder = if let Some(certificates) = certificates {
+            builder.tls_certs_only(certificates)
+        } else {
+            builder
+        };
+        let client = builder.build().map_err(|_| "无法初始化同步网络连接。")?;
         Ok(Self {
             client,
             #[cfg(test)]

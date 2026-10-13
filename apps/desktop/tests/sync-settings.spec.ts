@@ -82,7 +82,7 @@ async function nativeSync(page: Page, initialStatus = disabled, style: UIStyle =
     });
   }, { initialSnapshot, initialStatus, failSubscription });
   await page.goto('/?surface=console&page=settings');
-  await expect(page.getByRole('heading', { name: 'Mac 与 Windows 同步' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Mac、Windows 与安卓同步' })).toBeVisible();
   if (!failSubscription) await expect(page.locator('.sync-load-error')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => (window as any).__sync.calls.filter((call: any) => call.command === 'sync_status').length)).toBeGreaterThan(0);
 }

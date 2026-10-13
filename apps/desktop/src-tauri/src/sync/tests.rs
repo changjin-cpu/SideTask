@@ -10,6 +10,133 @@ use std::path::PathBuf;
 
 const DATE: &str = "2026-10-04";
 const USER_ID: &str = "68ecf47c-22cb-45df-86e4-771d5bdbbaad";
+
+#[test]
+fn three_clients_converge_after_phone_restart_with_independent_edits_and_orders() {
+    let temp = TempClients::new();
+    let cloud = MockCloud::new();
+    let credentials = credentials();
+    let mac = temp.open("mac");
+    let windows = temp.open("windows");
+    let phone = temp.open("android");
+    let ids = seed(&mac);
+    for client in [&mac, &windows, &phone] {
+        sync(client, &cloud, &credentials);
+    }
+    let phone_device = phone.lock().unwrap().sync.device_id.clone();
+    assert_ne!(phone_device, mac.lock().unwrap().sync.device_id);
+    assert_ne!(phone_device, windows.lock().unwrap().sync.device_id);
+    edit(&mac, &ids[0], json!({"title":"Mac title"}));
+    edit(&windows, &ids[0], json!({"notes":"Windows notes"}));
+    edit(&phone, &ids[0], json!({"priority":"high"}));
+    mutate(
+        &mac,
+        Action::PlanTask {
+            id: ids[2].clone(),
+            planned: false,
+            date: DATE.into(),
+        },
+    );
+    mutate(
+        &windows,
+        Action::ReorderTasks {
+            scope: "all".into(),
+            task_ids: vec![ids[2].clone(), ids[0].clone(), ids[1].clone()],
+        },
+    );
+    mutate(
+        &phone,
+        Action::ReorderTasks {
+            scope: "deadlines".into(),
+            task_ids: vec![ids[1].clone(), ids[2].clone(), ids[0].clone()],
+        },
+    );
+    for (client, style) in [(&mac, "paper"), (&windows, "studio"), (&phone, "mono")] {
+        mutate(
+            client,
+            Action::UpdateSettings {
+                changes: json!({"uiStyle":style}),
+            },
+        );
+    }
+    let pending_phone = state(&phone);
+    drop(phone);
+    let phone = temp.open("android");
+    assert_eq!(state(&phone), pending_phone);
+    assert_eq!(phone.lock().unwrap().sync.device_id, phone_device);
+    for _ in 0..3 {
+        for client in [&phone, &mac, &windows] {
+            sync(client, &cloud, &credentials);
+        }
+    }
+    for client in [&mac, &windows, &phone] {
+        assert_eq!(data(client), cloud.document().data);
+        assert!(!pending(client));
+        let committed = data(client);
+        let task = committed
+            .tasks
+            .iter()
+            .find(|task| task.id == ids[0])
+            .unwrap();
+        assert_eq!(task.title, "Mac title");
+        assert_eq!(task.notes, "Windows notes");
+        assert_eq!(task.priority, "high");
+        assert!(!committed
+            .plans
+            .iter()
+            .any(|plan| plan.task_id == ids[2] && plan.date == DATE));
+        assert_eq!(
+            committed.task_order,
+            vec![ids[2].clone(), ids[0].clone(), ids[1].clone()]
+        );
+        assert_eq!(
+            committed.deadline_order,
+            vec![ids[1].clone(), ids[2].clone(), ids[0].clone()]
+        );
+    }
+    assert_eq!(snapshot(&mac).settings.ui_style, "paper");
+    assert_eq!(snapshot(&windows).settings.ui_style, "studio");
+    assert_eq!(snapshot(&phone).settings.ui_style, "mono");
+}
+
+#[test]
+fn third_client_changes_invalidate_a_phone_conflict_choice() {
+    let temp = TempClients::new();
+    let cloud = MockCloud::new();
+    let credentials = credentials();
+    let mac = temp.open("mac");
+    let windows = temp.open("windows");
+    let phone = temp.open("android");
+    let ids = seed(&mac);
+    for client in [&mac, &windows, &phone] {
+        sync(client, &cloud, &credentials);
+    }
+    edit(&mac, &ids[0], json!({"title":"Mac version"}));
+    edit(&phone, &ids[0], json!({"title":"Phone draft"}));
+    sync(&mac, &cloud, &credentials);
+    let first = conflict(&phone, &cloud, &credentials, None);
+    sync(&windows, &cloud, &credentials);
+    edit(&windows, &ids[0], json!({"title":"Windows newer version"}));
+    sync(&windows, &cloud, &credentials);
+    let stale_choice = (first.clone(), choose(&first, ConflictChoice::Local));
+    let newer = conflict(&phone, &cloud, &credentials, Some(&stale_choice));
+    assert!(newer.remote_revision > first.remote_revision);
+    assert!(pending(&phone));
+    assert!(data(&phone)
+        .tasks
+        .iter()
+        .any(|task| task.title == "Phone draft"));
+    let choice = (newer.clone(), choose(&newer, ConflictChoice::Remote));
+    assert!(matches!(
+        cycle(&phone, &cloud, &credentials, Some(&choice)),
+        Ok(CycleResult::Committed(_))
+    ));
+    for client in [&mac, &windows] {
+        sync(client, &cloud, &credentials);
+    }
+    assert_eq!(data(&phone), data(&mac));
+    assert_eq!(data(&phone), data(&windows));
+}
 type Hook = Box<dyn FnOnce() + Send>;
 
 struct Server {

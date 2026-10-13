@@ -9,6 +9,10 @@ document.documentElement.dataset.surface = surface;
 document.documentElement.dataset.runtime = isDesktop ? 'desktop' : 'browser';
 
 async function loadApplication(): Promise<ReactNode> {
+  if (surface === 'mobile') {
+    const { default: MobileApplication } = await import('./surfaces/mobile/Mobile');
+    return <MobileApplication />;
+  }
   if (surface === 'edge-handle') {
     const { default: HandleApplication } = await import('./startup/HandleApplication');
     return <HandleApplication />;

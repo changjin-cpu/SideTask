@@ -22,6 +22,12 @@ fn main() {
             "sync_sign_out",
             "sync_now",
             "sync_resolve",
+            "mobile_active",
+            "mobile_time_zone",
+            "mobile_credential_probe",
+            "mobile_network_probe",
+            "mobile_load_draft",
+            "mobile_save_draft",
         ]),
     ))
     .expect("failed to build SideTask command permissions")

@@ -3,7 +3,9 @@ import type { Task } from './types';
 
 /** Never cache this value: the system zone can change while a window stays open. */
 export function currentTimeZone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Android WebView can report a numeric zero offset for the system UTC zone.
+  return zone === '+00:00' || zone === '-00:00' ? 'UTC' : zone;
 }
 export function validDate(value: unknown): value is string {
   if (typeof value !== 'string' || !/^(?!0000)\d{4}-\d{2}-\d{2}$/.test(value)) return false;

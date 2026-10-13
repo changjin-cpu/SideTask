@@ -1,10 +1,13 @@
 [package]
 name = "sidetask"
-version = "0.1.0"
+version = "0.2.0"
 description = "侧笺 · SideTask — A quieter place for your tasks"
 authors = ["SideTask contributors"]
 edition = "2021"
 rust-version = "1.85"
+
+[features]
+mobile-smoke = []
 
 [lib]
 name = "sidetask_lib"
@@ -14,8 +17,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
-tauri-plugin-single-instance = "2"
+tauri = { version = "2", features = ["macos-private-api"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "=0.10.9"
@@ -25,11 +27,18 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 chrono-tz = "=0.10.4"
 iana-time-zone = "=0.1.65"
 reqwest = { version = "=0.13.5", default-features = false, features = ["blocking", "json", "rustls", "system-proxy"] }
-keyring = { version = "=3.6.3", default-features = false, features = ["apple-native", "windows-native"] }
 base64 = "=0.22.1"
 
+[target.'cfg(not(target_os = "android"))'.dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+keyring = { version = "=3.6.3", default-features = false, features = ["apple-native", "windows-native"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-sidetask-mobile = { path = "mobile-plugin" }
+
 [target.'cfg(target_os = "windows")'.dependencies]
-windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_LibraryLoader", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "=0.6.2"

@@ -15,7 +15,7 @@ function lastSynced(value: string | null): string {
   return Number.isNaN(time.getTime()) ? '暂无可用时间' : time.toLocaleString();
 }
 
-export function SyncSettings() {
+export function SyncSettings({ mobile = false }: { mobile?: boolean }) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [loadError, setLoadError] = useState('');
   const [eventError, setEventError] = useState('');
@@ -121,8 +121,8 @@ export function SyncSettings() {
   const allChosen = !!status?.conflicts.length && status.conflicts.every(conflict => choices[conflict.id]);
 
   return <section className="settings-section sync-settings" aria-labelledby="sync-heading">
-    <div className="settings-section-title"><Cloud size={18}/><h2 id="sync-heading">Mac 与 Windows 同步</h2></div>
-    <p className="sync-description">可选连接自己的 Supabase 项目。两台电脑使用同一项目和账号；任务与安排自动同步，窗口和外观各自保留。</p>
+    <div className="settings-section-title"><Cloud size={18}/><h2 id="sync-heading">Mac、Windows 与安卓同步</h2></div>
+    <p className="sync-description">{mobile ? '使用与电脑相同的 Supabase 项目和同步账号。任务与安排自动同步，外观各自保留。' : '可选连接自己的 Supabase 项目。电脑与安卓使用同一项目和账号；任务与安排自动同步，窗口和外观各自保留。'}</p>
     {!syncAvailable ? <p className="sync-preview">云同步仅在桌面版使用。当前浏览器预览仍只保存在本机。</p> : <>
       {(loadError || eventError) && <div className="sync-load-error" role="status"><span>{loadError || eventError}</span><button type="button" className="text-button" disabled={working} onClick={() => setWatchVersion(version => version + 1)}>重新读取同步状态</button></div>}
       {!status && !loadError && !eventError && <p role="status">正在读取同步状态…</p>}
@@ -152,7 +152,7 @@ export function SyncSettings() {
         {!!status.conflicts.length && <div className="sync-conflicts" role="group" aria-label="处理同步冲突"><p>逐项选择要保留的内容。全部选择并确认前，不会覆盖任一版本。</p>{status.conflicts.map(conflict => <fieldset className="sync-conflict" key={conflict.id} disabled={busy}><legend>{conflict.label}</legend><div className="sync-conflict-options">{(['local', 'remote'] as const).map(side => <div className="sync-conflict-option" key={side}><label><span><input type="radio" name={`sync-conflict-${conflict.id}`} value={side} checked={choices[conflict.id] === side} onChange={() => setChoices(current => ({ ...current, [conflict.id]: side }))}/>{side === 'local' ? '保留本机' : '保留云端'}</span></label><pre tabIndex={0} role="region" aria-label={`${side === 'local' ? '本机' : '云端'}完整内容：${conflict.label}`}>{describe(conflict[side])}</pre></div>)}</div></fieldset>)}<button type="button" className="primary-button" disabled={busy || !allChosen} onClick={() => void perform(() => resolveSync(choices))}>确认解决全部冲突</button></div>}
         <div className="sync-actions"><button type="button" className="secondary-button" disabled={busy || !!status.conflicts.length} onClick={() => void perform(syncNow)}><RefreshCw size={14}/>{status.phase === 'error' ? '重试同步' : '立即同步'}</button><button type="button" className="text-button" disabled={busy} onClick={() => setDisconnect(true)}>断开同步</button></div>
       </div>}
-      {status && disconnect && <div className="sync-disconnect" role="group" aria-label="确认断开同步"><p>断开后保留本机任务，云端数据也不会删除。{status.pending ? '还有本机更改未上传，可先继续同步。' : '这台电脑将停止自动同步。'}</p><div className="sync-actions"><button type="button" className="secondary-button" disabled={busy} onClick={() => void perform(signOutSync).then(done => { if (done && live.current) { setDisconnect(false); setPassword(''); setMerge(false); } })}>确认断开</button><button type="button" className="text-button" disabled={busy} onClick={() => setDisconnect(false)}>继续同步</button></div></div>}
+      {status && disconnect && <div className="sync-disconnect" role="group" aria-label="确认断开同步"><p>断开后保留本机任务，云端数据也不会删除。{status.pending ? '还有本机更改未上传，可先继续同步。' : '这台设备将停止自动同步。'}</p><div className="sync-actions"><button type="button" className="secondary-button" disabled={busy} onClick={() => void perform(signOutSync).then(done => { if (done && live.current) { setDisconnect(false); setPassword(''); setMerge(false); } })}>确认断开</button><button type="button" className="text-button" disabled={busy} onClick={() => setDisconnect(false)}>继续同步</button></div></div>}
       {failure && <p className="inline-error sync-operation-error" role="alert">{failure}</p>}
     </>}
   </section>;

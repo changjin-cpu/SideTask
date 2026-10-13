@@ -1,5 +1,7 @@
 # 数据模型与业务一致性
 
+2026-10-13：Android 与 Mac/Windows 共用 schema 7 和 sync protocol 1，不增加云表或任务字段。手机草稿单独保存在私有目录 mobile-draft-v1.json，带 version 1；同步写入后原子替换，错误保留原文件，不入任务快照或云端。账号会话由 Keystore 加密保存，系统备份关闭。用户已确认两台电脑正常同步，三端个人账号联网覆盖仍须单独记录。
+
 状态：当前实现继续使用 SQLite 的 app_state JSON snapshot。schema 3 加入 Task.deletedAt；schema 4 为 placement.console 及字段合并建立兼容边界；schema 5 为 Settings.revealMode 建立边界；schema 6 保存全部任务与 DDL 的独立手动顺序；当前 schema 7 新增独立 sync 记录，便携备份仍为 v3。类型见 `apps/desktop/src/lib/types.ts` 与 Rust 平台几何类型，实际协议见本文末尾各扩展小节。下方实体关系与目标协议用于说明模型设计；实际存储格式为 `app_state` JSON 快照，版本控制使用 `Snapshot.revision` 和 `Task.revision`，具体格式以各“实际”协议小节为准。控制台与边缘小窗共享 Rust 服务和数据库。架构取舍见 [ADR-0004](../decisions/0004-data-safety-and-fixed-deadlines.md)、[ADR-0006](../decisions/0006-console-window-preferences.md) 与 [ADR-0009](../decisions/0009-optional-desktop-sync.md)。同步代码已实现，实际 Supabase 项目与 Mac ↔ Windows 联网验收待完成；既有验证范围不能因模型更新自动扩展。
 
 首版仅有独立的大任务。模型中不设 `parent_id`、子任务表、任务依赖、步骤清单、百分比进度或父子完成聚合；备注是普通文本，不支持可独立勾选的步骤。一次勾选表示整项任务完成，加入今日也不会创建一天的小任务或进度记录。见 [ADR-0002](../decisions/0002-console-and-edge-panel.md)。

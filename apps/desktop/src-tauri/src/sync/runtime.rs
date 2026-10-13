@@ -41,6 +41,7 @@ struct View {
 struct Signal {
     stop: bool,
     wake: bool,
+    suspended: bool,
 }
 pub struct SyncRuntime {
     gate: Mutex<()>,
@@ -50,6 +51,7 @@ pub struct SyncRuntime {
     cloud: Box<dyn Cloud>,
 }
 impl SyncRuntime {
+    #[cfg(not(target_os = "android"))]
     pub fn new() -> Result<Self, String> {
         Ok(Self {
             gate: Mutex::new(()),
@@ -58,6 +60,28 @@ impl SyncRuntime {
             credentials: Box::new(NativeCredentials),
             cloud: Box::new(Supabase::new()?),
         })
+    }
+    #[cfg(target_os = "android")]
+    pub fn new_android(app: tauri::AppHandle) -> Result<Self, String> {
+        let cloud = Supabase::new_android(&app)?;
+        Ok(Self {
+            gate: Mutex::new(()),
+            view: Mutex::new(View::default()),
+            signal: Arc::new((Mutex::new(Signal::default()), Condvar::new())),
+            credentials: Box::new(NativeCredentials(app)),
+            cloud: Box::new(cloud),
+        })
+    }
+    #[cfg(target_os = "android")]
+    pub fn set_active(&self, active: bool) {
+        let (mutex, condvar) = &*self.signal;
+        if let Ok(mut signal) = mutex.lock() {
+            signal.suspended = !active;
+            if active {
+                signal.wake = true;
+            }
+            condvar.notify_all();
+        }
     }
     pub fn start(app: tauri::AppHandle) {
         let signal = app.state::<Self>().signal.clone();
@@ -75,6 +99,10 @@ impl SyncRuntime {
                 if state.stop {
                     break;
                 }
+                if state.suspended {
+                    state.wake = false;
+                    continue;
+                }
                 let woke = state.wake;
                 state.wake = false;
                 drop(state);
@@ -88,6 +116,9 @@ impl SyncRuntime {
                     };
                     if state.stop {
                         break;
+                    }
+                    if state.suspended {
+                        continue;
                     }
                 }
                 let runtime = app.state::<Self>();

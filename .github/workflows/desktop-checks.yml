@@ -90,6 +90,46 @@ jobs:
           path: apps/desktop/tests/results/
           retention-days: 7
 
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.14.1
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.98.1
+          targets: aarch64-linux-android,x86_64-linux-android
+      - run: npm ci
+      - name: Install Android SDK and NDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;28.0.13004108'
+      - name: Build Android release APK (unsigned CI output)
+        run: |
+          export NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
+          npm run tauri -- android build --ci --apk --target aarch64 x86_64
+      - name: Verify APK 16 KB ZIP alignment
+        run: "$ANDROID_HOME/build-tools/35.0.0/zipalign -c -P 16 -v 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: SideTask-trial-Android-ARM64-X64-${{ github.sha }}
+          path: apps/desktop/src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
   sync-sql:
     runs-on: ubuntu-latest
     timeout-minutes: 10

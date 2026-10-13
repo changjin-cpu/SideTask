@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "Android task window; credential plugin remains Rust-only.",
+  "platforms": ["android"],
+  "windows": ["console"],
+  "permissions": ["core:default", "allow-get-snapshot", "allow-mutate", "allow-sync-status", "allow-sync-sign-in", "allow-sync-sign-out", "allow-sync-now", "allow-sync-resolve", "allow-mobile-active", "allow-mobile-time-zone", "allow-mobile-load-draft", "allow-mobile-save-draft", "allow-mobile-credential-probe", "allow-mobile-network-probe", "allow-get-startup-recovery"]
+}

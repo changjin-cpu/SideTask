@@ -27,11 +27,16 @@ exports/
 *.pfx
 *.cer
 *.key
+*.jks
+*.keystore
+*.apk
+*.aab
 test-results/
 playwright-report/
 **/tests/results/
 *.tsbuildinfo
-**/src-tauri/gen/
+**/src-tauri/gen/*
+!**/src-tauri/gen/android/
 
 # Local trial archives and audit outputs
 artifacts/
@@ -54,4 +59,5 @@ SideTask-macos.zip
 /CONTRIBUTING.md
 /docs/engineering/DEVELOPMENT.md
 /CHANGELOG.md
+/.impeccable.md
 /docs/README.md

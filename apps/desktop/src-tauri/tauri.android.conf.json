@@ -1,0 +1,3 @@
+{
+  "bundle": { "android": { "minSdkVersion": 26 } }
+}
