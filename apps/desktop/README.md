@@ -1,10 +1,10 @@
-# SideTask 桌面客户端（0.2.0 Beta 开发）
+# SideTask 桌面客户端（0.2.0 Beta 1）
 
 本文面向开发者。Android 单窗口控制台及构建说明见 [Android 开发与发布](../../docs/engineering/ANDROID.md)；任务、计划、排序与同步核心共用，桌面窗口层保持独立。安装和日常操作请读[完整使用说明书](../../docs/product/USER_GUIDE.md)，当前包下载见[项目首页](../../README.md#下载与安装)，问题反馈方式见[说明书](../../docs/product/USER_GUIDE.md#当前范围与反馈)。
 
 Tauri 2 + React / TypeScript + Rust + SQLite。任务、今日计划和设置共用一个 Rust 服务；控制台、边缘小窗和内部把手由平台层协调。当前已实现回收站与单项恢复、备份导入及双窗口草稿保护。
 
-本轮 `c922fea` 内部构建包含可选 Mac ↔ Windows Supabase 同步，未启用时保持原本的本机模式。使用前需初始化自己的 Supabase 项目并登录同一账号；真实 Supabase、系统凭据库与双端原生联网验收仍待完成。接入前阅读 [Supabase 配置说明](../../docs/engineering/SUPABASE_SETUP.md) 与 [ADR-0009](../../docs/decisions/0009-optional-desktop-sync.md)。
+本轮支持 Mac / Windows / Android 可选 Supabase 同步，不启用时保留本机模式。Android 使用单控制台，共用 Rust 任务服务及协议；桌面继续提供小窗与托盘。用户已报告桌面双端正常同步，个人账号三端联调须独立核对。接入说明见 [Supabase 配置](../../docs/engineering/SUPABASE_SETUP.md) 与 [Android 架构决策](../../docs/decisions/0010-android-and-three-device-sync.md)。
 
 在「设置 → 界面风格」可即时切换纸笺、霜序、暖刊、极简；四套均支持独立浅深色。风格跨窗口同步，重启保留，旧任务不会重置。
 
@@ -12,7 +12,7 @@ Tauri 2 + React / TypeScript + Rust + SQLite。任务、今日计划和设置共
 
 默认开发入口是 `mac`，已包含两平台的内部试用实现。Mac 使用 `mac` → `origin/mac`；Windows 同步远端后，从已确认的 `origin/mac` 完整提交 SHA 创建 `codex/<任务名>` 分支。已有工作副本按[接续说明](../../docs/UPDATING_CHECKOUT.md)保留原目录，在新目录克隆，不合并旧历史。
 
-[CI 37221920357](https://github.com/zhouchji-ops/Sidetask/actions/runs/37221920357)对应完整提交 `c922fea31d02bc6550d34f3c6de24130965f0060`。两端均通过 113 项前端业务、6 项工具和 211 项 UI 测试；Rust 为 Windows 239 项、Mac 232 项，内部包构建与上传均成功。当前下载与到期时间见[项目首页](../../README.md#下载与安装)，内层实际文件校验值见[使用说明书](../../docs/product/USER_GUIDE.md#更新重装和备份)。CI 结果不能代替系统凭据库和真实双端联网验收。
+验证与产物见 [桌面 CI 38391646889](https://github.com/zhouchji-ops/Sidetask/actions/runs/38391646889)、[Android CI 38391367388](https://github.com/zhouchji-ops/Sidetask/actions/runs/38391367388) 和 [Android 模拟器记录](../../docs/engineering/ANDROID.md#本轮验证记录2026-10-13)。实际下载以[项目首页](../../README.md#下载与安装)为准；CI 构建与个人设备联网验收分别记录。
 
 ## 开发
 
