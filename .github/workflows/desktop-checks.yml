@@ -115,7 +115,18 @@ jobs:
           targets: aarch64-linux-android,x86_64-linux-android
       - run: npm ci
       - name: Install Android SDK and NDK
-        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'ndk;28.0.13004108'
+        run: |
+          export ANDROID_HOME="$RUNNER_TEMP/sidetask-android-sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip --output "$RUNNER_TEMP/android-tools.zip"
+          echo "5fdcc763663eefb86a5b8879697aa6088b041e70  $RUNNER_TEMP/android-tools.zip" | sha1sum --check
+          unzip -q "$RUNNER_TEMP/android-tools.zip" -d "$RUNNER_TEMP/android-tools"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          mv "$RUNNER_TEMP/android-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses > /dev/null
+          set -o pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" 'platform-tools' 'platforms;android-36' 'build-tools;35.0.0' 'ndk;28.0.13004108'
       - name: Build Android release APK (unsigned CI output)
         run: |
           export NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
