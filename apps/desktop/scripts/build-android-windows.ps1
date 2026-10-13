@@ -13,6 +13,7 @@ $desktopRoot = Split-Path -Parent $PSScriptRoot
 $projectRoot = Join-Path $desktopRoot 'src-tauri/gen/android'
 if ($NativeTargetDir -match '[^\x00-\x7F]') { throw 'NativeTargetDir must contain ASCII characters only for Windows NDK linking' }
 $env:ANDROID_HOME = (Resolve-Path -LiteralPath $SdkRoot).Path
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:NDK_HOME = Join-Path $env:ANDROID_HOME "ndk/$NdkVersion"
 $env:JAVA_HOME = (Resolve-Path -LiteralPath $JdkRoot).Path
 $env:CARGO_TARGET_DIR = [IO.Path]::GetFullPath($NativeTargetDir)

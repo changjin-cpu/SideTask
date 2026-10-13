@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      target:
+        description: Checks to run
+        type: choice
+        default: all
+        options: [all, android, desktop]
 
 permissions:
   contents: read
@@ -14,6 +20,7 @@ concurrency:
 
 jobs:
   desktop:
+    if: github.event_name != 'workflow_dispatch' || inputs.target != 'android'
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -91,6 +98,7 @@ jobs:
           retention-days: 7
 
   android:
+    if: github.event_name != 'workflow_dispatch' || inputs.target != 'desktop'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -118,6 +126,8 @@ jobs:
         run: |
           export ANDROID_HOME="$RUNNER_TEMP/sidetask-android-sdk"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          export ANDROID_SDK_ROOT="$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           curl --fail --location --retry 3 https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip --output "$RUNNER_TEMP/android-tools.zip"
           echo "5fdcc763663eefb86a5b8879697aa6088b041e70  $RUNNER_TEMP/android-tools.zip" | sha1sum --check
           unzip -q "$RUNNER_TEMP/android-tools.zip" -d "$RUNNER_TEMP/android-tools"
@@ -142,6 +152,7 @@ jobs:
           compression-level: 0
 
   sync-sql:
+    if: github.event_name != 'workflow_dispatch' || inputs.target != 'android'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
@@ -173,6 +184,7 @@ jobs:
           done
 
   rust-advisories:
+    if: github.event_name != 'workflow_dispatch' || inputs.target != 'android'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

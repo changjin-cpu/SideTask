@@ -20,6 +20,9 @@ async function waitNode(test) {
 }
 async function tap(text) {
   const node = await waitNode(node=>node.text===text && node.enabled==='true');
+  tapNode(node);
+}
+function tapNode(node) {
   const bounds=node.bounds.match(/\[(\d+),(\d+)\]\[(\d+),(\d+)\]/);
   if (!bounds) throw new Error('Missing UI bounds');
   android('shell','input','tap',String(Math.round((+bounds[1]+ +bounds[3])/2)),String(Math.round((+bounds[2]+ +bounds[4])/2)));
@@ -32,7 +35,7 @@ try {
   android('shell','am','start','-n','com.changjin.sidetask/.MainActivity');
   await waitNode(node=>node.text==='今日计划');
   await tap('新建任务');
-  await waitNode(node=>node.class==='android.widget.EditText' && node.focused==='true');
+  tapNode(await waitNode(node=>node.class==='android.widget.EditText'));
   android('shell','input','text','Release_emulator_task');
   android('shell','input','keyevent','4');
   await tap('保存任务');
